@@ -3,9 +3,17 @@ require("dotenv").config();
 const { APIService } = require("./services/APIService");
 const { TokenService } = require("./services/TokenService");
 
+const cors = require("cors");
 let express = require("express");
 let app = express();
-app.use(express.json()); // for parsing request body as JSON
+
+const corsOptions = {
+  origin: 'https://mctrl-client-bsl.netlify.app',
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
 let port = process.env.PORT || 3000;
 
 const moment = require("moment");
