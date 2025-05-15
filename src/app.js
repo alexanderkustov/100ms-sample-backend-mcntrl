@@ -22,11 +22,61 @@ app.post("/create-room", async (req, res) => {
     region: req.body.region,
   };
   try {
+    // Create the room
     const roomData = await apiService.post("/rooms", payload);
+
+    // If room creation is successful, create room codes for it
+    if (roomData && roomData.id) {
+      const roomId = roomData.id;
+      const roomCodePath = `/room-codes/room/${roomId}`;
+      try {
+        const roomCodesResponse = await apiService.post(roomCodePath, {}); // Empty payload as per API spec
+        // Populate the room_codes inside the roomData object
+        roomData.room_codes = roomCodesResponse.data; // Assuming the codes are in the 'data' array of the response
+      } catch (roomCodeError) {
+        console.error(`Failed to create room codes for room ${roomId}:`, roomCodeError);
+        // Decide if this is a critical error. For now, we'll log it and proceed without room codes.
+        // Alternatively, you could throw the error or return a specific error response:
+        // throw new Error(`Room created (ID: ${roomId}) but failed to create room codes.`);
+      }
+    }
     res.json(roomData);
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
+  }
+});
+
+// List all rooms
+app.get("/list-rooms", async (req, res) => {
+  try {
+    const roomListData = await apiService.get("/rooms");
+    res.json(roomListData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// Enable or disable a room
+// This endpoint takes a room_id as a URL parameter and an 'enabled' status in the JSON body.
+// e.g., POST /rooms/your_room_id/active with body {"enabled": false} to disable
+// or {"enabled": true} to enable.
+app.post("/rooms/:room_id/active", async (req, res) => {
+  const roomId = req.params.room_id;
+  const { enabled } = req.body; // Expecting { "enabled": true } or { "enabled": false }
+
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: "Invalid 'enabled' status in request body. Must be true or false." });
+  }
+
+  try {
+    const updatePayload = { enabled: enabled };
+    const updatedRoomData = await apiService.post(`/rooms/${roomId}`, updatePayload); // Calls POST https://api.100ms.live/v2/rooms/<room_id>
+    res.json(updatedRoomData);
+  } catch (err) {
+    console.error(`Failed to update room ${roomId} active status:`, err.response ? err.response.data : err.message);
+    res.status(err.response ? err.response.status : 500).json(err.response ? err.response.data : { message: "Internal Server Error" });
   }
 });
 
