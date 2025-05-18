@@ -58,10 +58,42 @@ app.post("/create-room", async (req, res) => {
 // List all rooms
 app.get("/list-rooms", async (req, res) => {
   try {
-    const roomListData = await apiService.get("/rooms");
-    res.json(roomListData);
+    const roomListData = await apiService.get("/rooms"); // This usually returns { data: [room1, room2, ...], limit, last }
+
+    if (roomListData && roomListData.data && roomListData.data.length > 0) {
+      // Map over the rooms and fetch guest codes for each
+      const roomsWithGuestCodes = await Promise.all(
+        roomListData.data.map(async (room) => {
+          try {
+            // Fetch all room codes for the current room
+            // The 100ms API for listing room codes for a room is GET /room-codes/room/{room_id}
+            const roomCodesResponse = await apiService.get(`/room-codes/room/${room.id}`);
+            
+            let guestCodes = [];
+            if (roomCodesResponse && roomCodesResponse.data) {
+              // Filter for codes where role is "guest"
+              guestCodes = roomCodesResponse.data.filter(
+                (code) => code.role === "guest"
+              );
+            }
+            // Add the filtered guest codes to the room object
+            return { ...room, guest_room_codes: guestCodes };
+          } catch (codeError) {
+            console.error(`Failed to fetch room codes for room ${room.id}:`, codeError.message);
+            // If fetching codes fails for a room, return the room with empty guest codes
+            // and optionally an error indicator
+            return { ...room, guest_room_codes: [], error_fetching_codes: "Failed to retrieve room codes" };
+          }
+        })
+      );
+      // Replace the original room data with the enhanced data
+      res.json({ ...roomListData, data: roomsWithGuestCodes });
+    } else {
+      // No rooms found or data array is empty, return the original response
+      res.json(roomListData);
+    }
   } catch (err) {
-    console.error(err);
+    console.error("Error in /list-rooms endpoint:", err.message);
     res.status(500).send("Internal Server Error");
   }
 });
