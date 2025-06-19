@@ -5,6 +5,7 @@ const { TokenService } = require("./services/TokenService");
 
 const cors = require("cors");
 let express = require("express");
+const twilio = require('twilio');
 let app = express();
 
 const corsOptions = {
@@ -226,6 +227,59 @@ app.get("/session-list-by-room", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
+
+// TWILIO CALLS API
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+app.use(express.json());
+
+// Initiate call
+app.post('/api/calls', async (req, res) => {
+  try {
+    const { to, from } = req.body;
+    
+    const call = await client.calls.create({
+      to: to,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      url: 'http://demo.twilio.com/docs/voice.xml'
+    });
+    
+    res.json({
+      id: call.sid,
+      to: call.to,
+      from: call.from,
+      status: call.status,
+      startTime: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get call status
+app.get('/api/calls/:id', async (req, res) => {
+  try {
+    const call = await client.calls(req.params.id).fetch();
+    
+    res.json({
+      id: call.sid,
+      to: call.to,
+      from: call.from,
+      status: call.status,
+      duration: call.duration,
+      startTime: call.dateCreated,
+      endTime: call.dateUpdated
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Token server started on ${port}!`);
