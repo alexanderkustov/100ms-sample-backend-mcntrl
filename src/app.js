@@ -245,6 +245,7 @@ app.post('/api/calls', async (req, res) => {
     
     const call = await client.calls.create({
       to: to,
+      connectToPhoneNumber: "+447915268396",
       from: process.env.TWILIO_PHONE_NUMBER,
       url: 'http://demo.twilio.com/docs/voice.xml'
     });
