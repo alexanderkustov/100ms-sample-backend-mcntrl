@@ -271,7 +271,7 @@ app.post('/voice', (req, res) => {
     });
     dial.number(req.body.To);
   } else {
-    twiml.say('Thanks for calling!');
+    twiml.say('something went off!');
   }
   
   res.type('text/xml');
