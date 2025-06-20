@@ -264,14 +264,18 @@ app.post('/api/token', (req, res) => {
 
 app.post('/voice', (req, res) => {
   const twiml = new twilio.twiml.VoiceResponse();
+  const toPhoneNumber = req.body.To;
   
-  if (req.body.To) {
+  if (toPhoneNumber) {
     const dial = twiml.dial({
       callerId: process.env.TWILIO_PHONE_NUMBER
     });
-    dial.number(req.body.To);
+    // You can add error handling for invalid phone numbers if necessary,
+    // though Twilio will also handle failures to connect.
+    dial.number(toPhoneNumber);
   } else {
-    twiml.say('something went off!');
+    console.error("Call to /voice endpoint missing 'To' parameter in request body.");
+    twiml.say('Sorry, we could not complete your call. The destination number was not provided.');
   }
   
   res.type('text/xml');
