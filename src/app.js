@@ -236,7 +236,48 @@ const client = twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-app.use(express.json());
+const AccessToken = twilio.jwt.AccessToken;
+const VoiceGrant = AccessToken.VoiceGrant;
+
+app.post('/api/token', (req, res) => {
+  const identity = req.body.identity || 'user';
+  
+  const accessToken = new AccessToken(
+    process.env.TWILIO_ACCOUNT_SID,
+    process.env.TWILIO_API_KEY,
+    process.env.TWILIO_API_SECRET,
+    { identity: identity }
+  );
+
+  const voiceGrant = new VoiceGrant({
+    outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID,
+    incomingAllow: false,
+  });
+
+  accessToken.addGrant(voiceGrant);
+  
+  res.json({
+    identity: identity,
+    token: accessToken.toJwt()
+  });
+});
+
+app.post('/voice', (req, res) => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  
+  if (req.body.To) {
+    const dial = twiml.dial({
+      callerId: process.env.TWILIO_PHONE_NUMBER
+    });
+    dial.number(req.body.To);
+  } else {
+    twiml.say('Thanks for calling!');
+  }
+  
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
 
 // Initiate call
 app.post('/api/calls', async (req, res) => {
@@ -245,7 +286,6 @@ app.post('/api/calls', async (req, res) => {
     
     const call = await client.calls.create({
       to: to,
-      connectToPhoneNumber: "+447915268396",
       from: process.env.TWILIO_PHONE_NUMBER,
       url: 'http://demo.twilio.com/docs/voice.xml'
     });
